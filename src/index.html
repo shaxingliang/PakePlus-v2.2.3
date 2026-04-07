@@ -1,11 +1,718 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>PakePlus</title>
-    </head>
-    <body>
-        Hello World
-    </body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <title>qPCR Analysis Suite | 自动化RT-qPCR工作站</title>
+    <style>
+        /* ---------- 全局重置 & 基础 ---------- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #f5f7fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* ========= 启动界面 (全屏覆盖，科研蓝色动效) ========= */
+        .splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at 30% 40%, #0a1a2f, #030c18);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.9s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            opacity: 1;
+            pointer-events: auto;
+            backdrop-filter: blur(0px);
+        }
+
+        /* 淡出隐藏 */
+        .splash-screen.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* 科研动态背景层 (抽象线条/微光) */
+        .bg-sci-effects {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .flow-line {
+            position: absolute;
+            background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.25), rgba(37, 99, 235, 0.4), transparent);
+            height: 1px;
+            width: 120%;
+            left: -10%;
+            filter: blur(1px);
+            animation: slideFlow 12s infinite linear;
+        }
+
+        .flow-line-1 { top: 15%; opacity: 0.5; animation-duration: 18s; }
+        .flow-line-2 { top: 40%; width: 140%; left: -20%; opacity: 0.3; animation-duration: 22s; animation-direction: reverse; }
+        .flow-line-3 { top: 70%; width: 110%; animation-duration: 14s; opacity: 0.4; }
+
+        @keyframes slideFlow {
+            0% { transform: translateX(-30%); }
+            100% { transform: translateX(30%); }
+        }
+
+        .glow-orb {
+            position: absolute;
+            width: 50vmax;
+            height: 50vmax;
+            background: radial-gradient(circle, rgba(37, 99, 235, 0.12), rgba(2, 20, 45, 0));
+            border-radius: 50%;
+            filter: blur(60px);
+            animation: floatGlow 24s infinite alternate ease-in-out;
+            z-index: 0;
+        }
+
+        .glow-orb-1 {
+            top: -20%;
+            left: -20%;
+            animation-duration: 28s;
+        }
+        .glow-orb-2 {
+            bottom: -30%;
+            right: -20%;
+            width: 60vmax;
+            height: 60vmax;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.08), transparent);
+            animation-duration: 32s;
+            animation-delay: -5s;
+        }
+
+        @keyframes floatGlow {
+            0% { transform: translate(0, 0) scale(1); opacity: 0.4; }
+            100% { transform: translate(4%, 6%) scale(1.1); opacity: 0.7; }
+        }
+
+        .grid-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(59, 130, 246, 0.08) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59, 130, 246, 0.08) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 1;
+            opacity: 0.4;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 20;
+            text-align: center;
+            padding: 24px;
+            max-width: 90vw;
+            animation: subtleRise 3.2s infinite alternate ease-in-out;
+        }
+
+        @keyframes subtleRise {
+            0% { transform: translateY(0px); }
+            100% { transform: translateY(-5px); }
+        }
+
+        .sci-icon {
+            display: inline-block;
+            margin-bottom: 28px;
+            filter: drop-shadow(0 4px 12px rgba(37, 99, 235, 0.3));
+        }
+
+        .main-title {
+            font-size: clamp(42px, 9vw, 72px);
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            background: linear-gradient(135deg, #F0F6FF, #D9E9FF, #9AC2FF);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            text-shadow: 0 2px 12px rgba(0, 30, 80, 0.3);
+            line-height: 1.2;
+            margin-bottom: 12px;
+        }
+
+        .sub-main {
+            font-size: clamp(32px, 6.5vw, 52px);
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            background: linear-gradient(120deg, #C7E2FF, #7AB2FF);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            margin-bottom: 36px;
+        }
+
+        .analysis-badge {
+            margin-top: 16px;
+            position: relative;
+            display: inline-block;
+        }
+
+        .analysis-text {
+            font-size: clamp(24px, 5.5vw, 40px);
+            font-weight: 600;
+            letter-spacing: 2.5px;
+            background: linear-gradient(125deg, #EFF6FF, #80B3FF);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 12px rgba(59,130,246,0.3);
+            display: inline-block;
+            padding: 6px 0;
+        }
+
+        .analysis-underline {
+            width: 75%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #3B82F6, #60A5FA, #3B82F6, transparent);
+            margin: 14px auto 0;
+            border-radius: 4px;
+            opacity: 0.7;
+            animation: breatheLine 2.8s infinite ease-in-out;
+        }
+
+        @keyframes breatheLine {
+            0% { width: 40%; opacity: 0.3; }
+            50% { width: 88%; opacity: 0.9; }
+            100% { width: 40%; opacity: 0.3; }
+        }
+
+        .ornament-divider {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin: 32px 0 20px;
+            opacity: 0.55;
+        }
+        .divider-dot {
+            width: 5px;
+            height: 5px;
+            background: #3B82F6;
+            border-radius: 50%;
+            animation: pulseDot 2s infinite alternate;
+        }
+        .divider-dot:nth-child(2) { animation-delay: 0.4s; background: #60A5FA; }
+        .divider-dot:nth-child(3) { animation-delay: 0.8s; }
+
+        @keyframes pulseDot {
+            0% { transform: scale(1); opacity: 0.4; box-shadow: 0 0 0px #3B82F6; }
+            100% { transform: scale(1.5); opacity: 1; box-shadow: 0 0 6px #3B82F6; }
+        }
+
+        .loader-indicator {
+            position: absolute;
+            bottom: 10%;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            z-index: 20;
+        }
+        .loader-dot {
+            width: 7px;
+            height: 7px;
+            background-color: #3B82F6;
+            border-radius: 50%;
+            opacity: 0.5;
+        }
+        .loader-dot:nth-child(1) { animation: loaderFade 1.4s infinite 0.1s; }
+        .loader-dot:nth-child(2) { animation: loaderFade 1.4s infinite 0.4s; }
+        .loader-dot:nth-child(3) { animation: loaderFade 1.4s infinite 0.7s; }
+        @keyframes loaderFade {
+            0%, 100% { opacity: 0.2; transform: scale(0.8); background-color: #60A5FA; }
+            50% { opacity: 1; transform: scale(1.2); background-color: #3B82F6; box-shadow: 0 0 5px #3B82F6; }
+        }
+
+        .data-stream {
+            position: absolute;
+            bottom: 18%;
+            left: 6%;
+            width: 100px;
+            height: 1.5px;
+            background: linear-gradient(90deg, #2563eb, transparent);
+            opacity: 0.3;
+            animation: streamMove 4s infinite linear;
+        }
+        .data-stream2 {
+            top: 25%;
+            right: 5%;
+            width: 70px;
+            background: linear-gradient(270deg, #3b82f6, transparent);
+            animation-duration: 5s;
+            animation-direction: reverse;
+        }
+
+        @keyframes streamMove {
+            0% { transform: translateX(0); opacity: 0.2; width: 60px; }
+            50% { transform: translateX(12px); opacity: 0.5; width: 100px; }
+            100% { transform: translateX(0); opacity: 0.2; width: 60px; }
+        }
+
+        @media (max-width: 550px) {
+            .analysis-text { letter-spacing: 1.8px; font-size: clamp(18px, 5.2vw, 28px); }
+            .loader-indicator { bottom: 8%; }
+        }
+
+        /* ========= 计算器主界面样式 (原有样式保持，增强细节) ========= */
+        .calculator-container {
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #1e2f41, #2c3e66);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .content {
+            display: flex;
+            flex-wrap: wrap;
+            padding: 20px;
+        }
+        
+        .input-section {
+            flex: 1;
+            min-width: 300px;
+            padding: 20px;
+            border-right: 1px solid #eee;
+        }
+        
+        .result-section {
+            flex: 1;
+            min-width: 300px;
+            padding: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: border 0.3s;
+        }
+        
+        input[type="number"]:focus {
+            border-color: #4a6491;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(74, 100, 145, 0.2);
+        }
+        
+        .calculate-btn {
+            background-color: #4a6491;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            width: 100%;
+            transition: background-color 0.3s;
+            margin-bottom: 10px;
+        }
+        
+        .calculate-btn:hover {
+            background-color: #3a5479;
+        }
+        
+        .btn-ct-to-copy {
+            background-color: #4a6491;
+        }
+        
+        .btn-copy-to-ct {
+            background-color: #2c7873;
+        }
+        
+        .result-box {
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 20px;
+            margin-top: 20px;
+            border-left: 4px solid #4a6491;
+        }
+        
+        .result-ct-box {
+            border-left: 4px solid #2c7873;
+        }
+        
+        .result-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #2c3e50;
+            text-align: center;
+            margin: 15px 0;
+        }
+        
+        .copy-number {
+            font-size: 1.5rem;
+            color: #4a6491;
+            text-align: center;
+            margin: 10px 0;
+            word-break: break-all;
+        }
+        
+        .ct-value {
+            font-size: 1.5rem;
+            color: #2c7873;
+            text-align: center;
+            margin: 10px 0;
+        }
+        
+        .explanation {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: #666;
+            line-height: 1.5;
+        }
+        
+        .info-box {
+            background-color: #e8f4f8;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 0.9rem;
+        }
+        
+        .formula {
+            text-align: center;
+            margin: 20px 0;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .example {
+            background-color: #f0f7ff;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 0.9rem;
+        }
+        
+        .calculation-type {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 0.9rem;
+            border-top: 1px solid #eee;
+        }
+        
+        @media (max-width: 768px) {
+            .input-section {
+                border-right: none;
+                border-bottom: 1px solid #eee;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 启动界面 (全屏覆盖，4秒后自动淡出移除) -->
+    <div class="splash-screen" id="splashScreen">
+        <div class="bg-sci-effects">
+            <div class="flow-line flow-line-1"></div>
+            <div class="flow-line flow-line-2"></div>
+            <div class="flow-line flow-line-3"></div>
+            <div class="glow-orb glow-orb-1"></div>
+            <div class="glow-orb glow-orb-2"></div>
+        </div>
+        <div class="grid-overlay"></div>
+        <div class="data-stream"></div>
+        <div class="data-stream data-stream2"></div>
+        
+        <div class="hero-content">
+            <div class="sci-icon">
+                <svg width="56" height="56" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M24 6 C18 12, 16 22, 24 28 C32 34, 30 44, 24 46" stroke="#3B82F6" stroke-width="1.6" stroke-linecap="round" fill="none" opacity="0.9">
+                        <animate attributeName="stroke-dasharray" values="0 80; 80 0; 0 80" dur="8s" repeatCount="indefinite" />
+                    </path>
+                    <path d="M24 6 C30 12, 32 22, 24 28 C16 34, 18 44, 24 46" stroke="#60A5FA" stroke-width="1.6" stroke-linecap="round" fill="none" opacity="0.7">
+                        <animate attributeName="stroke-dasharray" values="80 0; 0 80; 80 0" dur="8s" repeatCount="indefinite" />
+                    </path>
+                    <circle cx="24" cy="26" r="2.5" fill="#93C5FD" opacity="0.9">
+                        <animate attributeName="r" values="2;3;2" dur="3s" repeatCount="indefinite" />
+                    </circle>
+                    <circle cx="24" cy="14" r="1.5" fill="#3B82F6" opacity="0.7" />
+                    <circle cx="24" cy="38" r="1.5" fill="#3B82F6" opacity="0.7" />
+                </svg>
+            </div>
+            <div class="main-title">INFINITE</div>
+            <div class="sub-main">POSSIBILITIES</div>
+            <div class="ornament-divider">
+                <div class="divider-dot"></div>
+                <div class="divider-dot"></div>
+                <div class="divider-dot"></div>
+            </div>
+            <div class="analysis-badge">
+                <div class="analysis-text">AUTOMATED RT-QPCR ANALYSIS</div>
+                <div class="analysis-underline"></div>
+            </div>
+        </div>
+        <div class="loader-indicator">
+            <div class="loader-dot"></div>
+            <div class="loader-dot"></div>
+            <div class="loader-dot"></div>
+        </div>
+    </div>
+
+    <!-- 主要计算器内容 (初始可见，但被启动界面覆盖；启动界面消失后即可交互) -->
+    <div class="calculator-container" id="appMain">
+        <div class="container">
+            <header>
+                <h1>DNA Copy Number Calculator</h1>
+                <p class="subtitle">Bidirectional conversion between Ct value and Copy Number using qPCR standard curve equations</p>
+            </header>
+            
+            <div class="content">
+                <div class="input-section">
+                    <h2>Standard Curve Parameters</h2>
+                    <div class="formula">Y = mX + b</div>
+                    
+                    <div class="form-group">
+                        <label for="slope">Slope (m)</label>
+                        <input type="number" id="slope" step="any" placeholder="Enter slope" value="-3.228">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="intercept">Intercept (b)</label>
+                        <input type="number" id="intercept" step="any" placeholder="Enter intercept" value="39.85">
+                    </div>
+                    
+                    <div class="calculation-type">
+                        <h3>Type 1: Ct to Copy Number</h3>
+                        <div class="form-group">
+                            <label for="y-value">Y Value (Ct value)</label>
+                            <input type="number" id="y-value" step="any" placeholder="Enter Ct value">
+                        </div>
+                        <button class="calculate-btn btn-ct-to-copy" id="calculate-ct-to-copy">Calculate Copy Number</button>
+                    </div>
+                    
+                    <div class="calculation-type">
+                        <h3>Type 2: Copy Number to Ct</h3>
+                        <div class="form-group">
+                            <label for="initial-copy">Initial DNA Copy Number</label>
+                            <input type="number" id="initial-copy" step="any" placeholder="Enter Copy Number">
+                        </div>
+                        <button class="calculate-btn btn-copy-to-ct" id="calculate-copy-to-ct">Calculate Ct Value</button>
+                    </div>
+                    
+                    <div class="info-box">
+                        <h3>Instructions</h3>
+                        <p>1. Enter the slope (m) and intercept (b) of your standard curve.</p>
+                        <p>2. Select calculation type:</p>
+                        <p>   - Method 1: Enter Ct to get DNA Copy Number.</p>
+                        <p>   - Method 2: Enter Copy Number to get Ct value.</p>
+                        <p>3. Click the button to get results.</p>
+                    </div>
+                    
+                    <div class="example">
+                        <h3>Standard Curve Quality Indicators</h3>
+                        <p>Efficiency (E): 104.1%</p>
+                        <p>Slope (S): -3.228</p>
+                        <p>Correlation Coefficient (R²): 0.98</p>
+                    </div>
+                </div>
+                
+                <div class="result-section">
+                    <h2>Results</h2>
+                    
+                    <div class="result-box" id="ct-to-copy-result">
+                        <h3>Ct to Copy Number Result</h3>
+                        <p>X Value (log<sub>10</sub> Copy Number):</p>
+                        <div class="result-value" id="x-value">--</div>
+                        
+                        <p>DNA Copy Number:</p>
+                        <div class="copy-number" id="copy-number">--</div>
+                    </div>
+                    
+                    <div class="result-box result-ct-box" id="copy-to-ct-result">
+                        <h3>Copy Number to Ct Result</h3>
+                        <p>Calculated Ct Value (Y):</p>
+                        <div class="result-value" id="y-result">--</div>
+                        
+                        <p>Corresponding log<sub>10</sub>(Copy Number):</p>
+                        <div class="ct-value" id="log-copy">--</div>
+                    </div>
+                    
+                    <div class="explanation">
+                        <p><strong>Definition:</strong></p>
+                        <p>Standard Equation: Y = mX + b</p>
+                        <p>Where:</p>
+                        <ul>
+                            <li>Y: Ct (Threshold Cycle)</li>
+                            <li>X: log<sub>10</sub>(DNA Copy Number)</li>
+                            <li>m: Slope (typically between -3.1 and -3.6)</li>
+                            <li>b: Intercept (related to PCR efficiency)</li>
+                        </ul>
+                        <p>In real-time PCR, a lower Ct value indicates a higher initial amount of DNA template.</p>
+                    </div>
+                    
+                    <div class="info-box">
+                        <h3>About Standard Curves</h3>
+                        <p>A qPCR standard curve is established by measuring known concentrations of DNA standards.</p>
+                        <p>The equation follows the format: Y = mX + b, where X = log<sub>10</sub>(Copy Number).</p>
+                    </div>
+                </div>
+            </div>
+            
+            <footer>
+                <p>DNA Copy Number Bidirectional Calculator - For qPCR Data Analysis</p>
+                <p>Note: Results are for reference only. Please use professional judgment for experimental results.</p>
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        // 启动画面控制：严格4秒停留，淡出后彻底移除启动层，显示下方计算器
+        (function() {
+            const splash = document.getElementById('splashScreen');
+            if (!splash) return;
+            
+            // 等待页面完全加载后再开始计时，确保动画流畅
+            window.addEventListener('load', function() {
+                // 4秒停留 (用户要求4s)
+                setTimeout(function() {
+                    splash.classList.add('fade-out');
+                    // 淡出动画结束后移除启动屏DOM，释放交互
+                    setTimeout(function() {
+                        if (splash && splash.parentNode) {
+                            splash.parentNode.removeChild(splash);
+                        }
+                        // 可触发自定义事件，通知主应用（控制台输出）
+                        console.log('[启动界面] 4秒停留结束 → 进入 DNA Copy Number Calculator');
+                        const event = new CustomEvent('app:splash-dismissed');
+                        window.dispatchEvent(event);
+                    }, 900); // 匹配CSS过渡时间
+                }, 4000);
+            });
+        })();
+
+        // ----- 计算器核心逻辑 (保留原有完整功能) -----
+        (function initCalculator() {
+            const slopeInput = document.getElementById('slope');
+            const interceptInput = document.getElementById('intercept');
+            const yValueInput = document.getElementById('y-value');
+            const initialCopyInput = document.getElementById('initial-copy');
+            
+            const calcCtToCopyBtn = document.getElementById('calculate-ct-to-copy');
+            const calcCopyToCtBtn = document.getElementById('calculate-copy-to-ct');
+            
+            const xValueSpan = document.getElementById('x-value');
+            const copyNumberSpan = document.getElementById('copy-number');
+            const yResultSpan = document.getElementById('y-result');
+            const logCopySpan = document.getElementById('log-copy');
+            
+            // Ct → Copy Number
+            calcCtToCopyBtn.addEventListener('click', function() {
+                const yValue = parseFloat(yValueInput.value);
+                const slope = parseFloat(slopeInput.value);
+                const intercept = parseFloat(interceptInput.value);
+                
+                if (isNaN(yValue) || isNaN(slope) || isNaN(intercept)) {
+                    alert('Please enter valid numeric values for Ct, slope and intercept!');
+                    return;
+                }
+                if (slope === 0) {
+                    alert('Slope cannot be zero!');
+                    return;
+                }
+                const xValue = (yValue - intercept) / slope;
+                const copyNumber = Math.pow(10, xValue);
+                
+                xValueSpan.textContent = xValue.toFixed(4);
+                
+                if (copyNumber >= 1000000) {
+                    copyNumberSpan.textContent = copyNumber.toLocaleString('en-US', {maximumFractionDigits: 0});
+                } else if (copyNumber >= 1) {
+                    copyNumberSpan.textContent = copyNumber.toFixed(2);
+                } else {
+                    copyNumberSpan.textContent = copyNumber.toExponential(4);
+                }
+            });
+            
+            // Copy Number → Ct
+            calcCopyToCtBtn.addEventListener('click', function() {
+                const initialCopy = parseFloat(initialCopyInput.value);
+                const slope = parseFloat(slopeInput.value);
+                const intercept = parseFloat(interceptInput.value);
+                
+                if (isNaN(initialCopy) || isNaN(slope) || isNaN(intercept)) {
+                    alert('Please enter valid numeric values for Copy Number, slope and intercept!');
+                    return;
+                }
+                if (initialCopy <= 0) {
+                    alert('Copy number must be greater than zero!');
+                    return;
+                }
+                const xValue = Math.log10(initialCopy);
+                const yValue = slope * xValue + intercept;
+                
+                yResultSpan.textContent = yValue.toFixed(4);
+                logCopySpan.textContent = xValue.toFixed(4);
+            });
+        })();
+    </script>
+</body>
 </html>
